@@ -1,0 +1,1855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Computation Unfolded: From Church–Turing to Chomsky</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #00ffff;
+            --secondary: #ff00ff;
+            --tertiary: #ffff00;
+            --dark-bg: #0a0a1a;
+            --light-bg: #f0f0ff;
+            --card-bg: rgba(16, 16, 32, 0.8);
+            --text-light: #ffffff;
+            --text-dark: #222222;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --error: #ff4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: var(--dark-bg);
+            color: var(--text-light);
+            overflow-x: hidden;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 255, 255, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 255, 0.05) 0%, transparent 20%);
+        }
+
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.7;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            animation: titleGlow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes titleGlow {
+            0% { text-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
+            100% { text-shadow: 0 0 30px rgba(255, 0, 255, 0.7), 0 0 40px rgba(255, 0, 255, 0.4); }
+        }
+
+        .hero p {
+            font-size: 1.5rem;
+            max-width: 800px;
+            margin-bottom: 2rem;
+            color: #ccccff;
+            animation: fadeIn 2s ease-out;
+        }
+
+        .enter-btn {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 50px;
+            color: var(--dark-bg);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            position: relative;
+            overflow: hidden;
+            animation: pulse 2s infinite;
+        }
+
+        .enter-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+            animation: none;
+        }
+
+        .enter-btn::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+            transform: rotate(45deg);
+            transition: all 0.5s;
+        }
+
+        .enter-btn:hover::after {
+            transform: rotate(45deg) translate(50%, 50%);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(0, 255, 255, 0.8); }
+            100% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .playground {
+            min-height: 100vh;
+            padding: 2rem;
+            position: relative;
+            display: none;
+        }
+
+        .island-container {
+            position: relative;
+            width: 100%;
+            height: 80vh;
+            margin: 0 auto;
+        }
+
+        .island {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.5s ease;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .island:nth-child(2) { animation-delay: 0.5s; }
+        .island:nth-child(3) { animation-delay: 1s; }
+        .island:nth-child(4) { animation-delay: 1.5s; }
+        .island:nth-child(5) { animation-delay: 2s; }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .island:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.6);
+            animation-play-state: paused;
+        }
+
+        .island.active {
+            transform: scale(1.2);
+            z-index: 10;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.8);
+            animation: activePulse 2s infinite;
+        }
+
+        @keyframes activePulse {
+            0% { box-shadow: 0 0 30px rgba(0, 255, 255, 0.6); }
+            50% { box-shadow: 0 0 50px rgba(0, 255, 255, 0.9); }
+            100% { box-shadow: 0 0 30px rgba(0, 255, 255, 0.6); }
+        }
+
+        .center-island {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: var(--dark-bg);
+            font-weight: bold;
+        }
+
+        .island-1 {
+            top: 15%;
+            left: 20%;
+            background: linear-gradient(45deg, #00ffaa, #00aaff);
+        }
+
+        .island-2 {
+            top: 15%;
+            right: 20%;
+            background: linear-gradient(45deg, #ffaa00, #ff00aa);
+        }
+
+        .island-3 {
+            bottom: 15%;
+            left: 20%;
+            background: linear-gradient(45deg, #aa00ff, #00aaff);
+        }
+
+        .island-4 {
+            bottom: 15%;
+            right: 20%;
+            background: linear-gradient(45deg, #ff0066, #ffaa00);
+        }
+
+        .simulation-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 26, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 2rem;
+            backdrop-filter: blur(5px);
+        }
+
+        .simulation-content {
+            width: 90%;
+            max-width: 1200px;
+            height: 80%;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.3);
+            animation: modalAppear 0.5s ease-out;
+        }
+
+        @keyframes modalAppear {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(90deg);
+        }
+
+        .automaton {
+            width: 100%;
+            height: 300px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin: 1rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .state {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: var(--primary);
+            color: var(--dark-bg);
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
+            z-index: 2;
+            transition: all 0.3s;
+        }
+
+        .state.active {
+            background: var(--success);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.8);
+            transform: scale(1.1);
+        }
+
+        .state.reject {
+            background: var(--error);
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+        }
+
+        .transition {
+            position: absolute;
+            height: 4px;
+            background: var(--secondary);
+            transform-origin: 0 0;
+            z-index: 1;
+        }
+
+        .transition-label {
+            position: absolute;
+            color: var(--tertiary);
+            font-size: 0.8rem;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 5px;
+            border-radius: 3px;
+            z-index: 3;
+        }
+
+        .input-string {
+            display: flex;
+            gap: 10px;
+            margin: 1rem 0;
+            align-items: center;
+        }
+
+        .input-string input {
+            flex: 1;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid var(--primary);
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .input-string input:focus {
+            outline: none;
+            border-color: var(--tertiary);
+            box-shadow: 0 0 10px rgba(255, 255, 0, 0.3);
+        }
+
+        .input-string button {
+            padding: 10px 20px;
+            background: var(--primary);
+            color: var(--dark-bg);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .input-string button:hover {
+            background: var(--tertiary);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 255, 0, 0.4);
+        }
+
+        .example-strings {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .example-string {
+            padding: 5px 10px;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid var(--primary);
+        }
+
+        .example-string:hover {
+            background: var(--primary);
+            color: var(--dark-bg);
+        }
+
+        .mission-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .mission-card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mission-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        .mission-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+        }
+
+        .mission-card h3 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .mission-card button {
+            margin-top: 1rem;
+            padding: 8px 16px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mission-card button:hover {
+            background: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            margin-top: 1rem;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 5px;
+            width: 0%;
+            transition: width 1s ease;
+        }
+
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--primary);
+            border-radius: 50%;
+            opacity: 0.7;
+        }
+
+        .control-panel {
+            display: flex;
+            gap: 10px;
+            margin: 1rem 0;
+        }
+
+        .control-btn {
+            padding: 8px 16px;
+            background: rgba(0, 255, 255, 0.2);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .control-btn:hover {
+            background: var(--primary);
+            color: var(--dark-bg);
+        }
+
+        .control-btn.active {
+            background: var(--primary);
+            color: var(--dark-bg);
+        }
+
+        .hierarchy-visual {
+            width: 100%;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin: 1rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hierarchy-level {
+            position: absolute;
+            width: 100%;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            padding-left: 20px;
+            color: white;
+            font-weight: bold;
+            transition: all 0.5s;
+        }
+
+        .hierarchy-level.active {
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            max-width: 250px;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .info-section {
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .info-section h3 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .tape {
+            display: flex;
+            margin: 1rem 0;
+            border: 2px solid var(--primary);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .tape-cell {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.3);
+            border-right: 1px solid var(--primary);
+            position: relative;
+        }
+
+        .tape-cell:last-child {
+            border-right: none;
+        }
+
+        .tape-cell.active {
+            background: var(--primary);
+            color: var(--dark-bg);
+        }
+
+        .tape-head {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--tertiary);
+            font-weight: bold;
+        }
+
+        .string-options {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .string-options h4 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .string-option {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid var(--primary);
+        }
+
+        .string-option:hover {
+            background: var(--primary);
+            color: var(--dark-bg);
+        }
+
+        .knowledge-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-left: 4px solid var(--tertiary);
+        }
+
+        .knowledge-panel h4 {
+            color: var(--tertiary);
+            margin-bottom: 0.5rem;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        .comparison-table th, .comparison-table td {
+            border: 1px solid var(--primary);
+            padding: 8px;
+            text-align: left;
+        }
+
+        .comparison-table th {
+            background: rgba(0, 255, 255, 0.2);
+            color: var(--primary);
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .quiz-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .quiz-question {
+            margin-bottom: 1rem;
+        }
+
+        .quiz-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .quiz-option {
+            padding: 10px;
+            background: rgba(0, 255, 255, 0.1);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .quiz-option:hover {
+            background: rgba(0, 255, 255, 0.3);
+        }
+
+        .quiz-option.correct {
+            background: var(--success);
+            color: var(--dark-bg);
+        }
+
+        .quiz-option.incorrect {
+            background: var(--error);
+            color: var(--dark-bg);
+        }
+
+        .achievement {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 1rem;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            display: none;
+            animation: slideIn 0.5s ease-out;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .achievement i {
+            color: var(--tertiary);
+            font-size: 2rem;
+            margin-right: 10px;
+        }
+
+        .interactive-diagram {
+            width: 100%;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin: 1rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .diagram-element {
+            position: absolute;
+            padding: 10px;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid var(--primary);
+        }
+
+        .diagram-element:hover {
+            background: var(--primary);
+            color: var(--dark-bg);
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .hero p {
+                font-size: 1.2rem;
+            }
+            
+            .island {
+                width: 150px;
+                height: 150px;
+                font-size: 0.9rem;
+            }
+            
+            .center-island {
+                width: 180px;
+                height: 180px;
+            }
+            
+            .mission-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg" id="heroCanvas"></div>
+        <div class="particles" id="particles"></div>
+        <h1>Computation Unfolded</h1>
+        <p>From Church–Turing to Chomsky: An Interactive Journey Through Computation Theory</p>
+        <button class="enter-btn" id="enterBtn">
+            <i class="fas fa-play"></i> Enter the Simulation
+        </button>
+    </section>
+
+    <!-- Playground Section -->
+    <section class="playground" id="playground">
+        <div class="particles" id="playgroundParticles"></div>
+        <div class="island-container">
+            <div class="island center-island active" data-island="church-turing">
+                <i class="fas fa-infinity fa-2x"></i>
+                <h2>Church-Turing Thesis</h2>
+                <p>Universal Computation</p>
+            </div>
+            <!-- Arranged in Chomsky Hierarchy Order -->
+            <div class="island island-1" data-island="regular">
+                <i class="fas fa-project-diagram fa-2x"></i>
+                <h2>Regular Languages</h2>
+                <p>Type 3 - Finite Automata</p>
+            </div>
+            <div class="island island-2" data-island="context-free">
+                <i class="fas fa-layer-group fa-2x"></i>
+                <h2>Context-Free Languages</h2>
+                <p>Type 2 - Pushdown Automata</p>
+            </div>
+            <div class="island island-3" data-island="context-sensitive">
+                <i class="fas fa-expand-alt fa-2x"></i>
+                <h2>Context-Sensitive Languages</h2>
+                <p>Type 1 - Linear Bounded Automata</p>
+            </div>
+            <div class="island island-4" data-island="recursively-enumerable">
+                <i class="fas fa-cogs fa-2x"></i>
+                <h2>Recursively Enumerable</h2>
+                <p>Type 0 - Turing Machines</p>
+            </div>
+        </div>
+
+        <!-- Missions Section -->
+        <div class="mission-container">
+            <div class="mission-card">
+                <h3>Mission 1: Regular Languages</h3>
+                <p>Build a Finite Automaton that accepts binary strings ending with '01'</p>
+                <div class="progress-bar">
+                    <div class="progress" id="mission1-progress" style="width: 30%"></div>
+                </div>
+                <button class="mission-btn" data-mission="regular">Start Mission</button>
+            </div>
+            <div class="mission-card">
+                <h3>Mission 2: Context-Free Languages</h3>
+                <p>Design a Pushdown Automaton that recognizes aⁿbⁿ strings</p>
+                <div class="progress-bar">
+                    <div class="progress" id="mission2-progress" style="width: 10%"></div>
+                </div>
+                <button class="mission-btn" data-mission="context-free">Start Mission</button>
+            </div>
+            <div class="mission-card">
+                <h3>Mission 3: Turing Machines</h3>
+                <p>Create a Turing Machine that recognizes palindromes</p>
+                <div class="progress-bar">
+                    <div class="progress" id="mission3-progress" style="width: 5%"></div>
+                </div>
+                <button class="mission-btn" data-mission="recursively-enumerable">Start Mission</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Simulation Areas -->
+    <div class="simulation-area" id="church-turing-sim">
+        <div class="simulation-content">
+            <button class="close-btn">&times;</button>
+            <h2>Church-Turing Thesis</h2>
+            <p>The Church-Turing thesis states that a function on natural numbers is computable by a human being following an algorithm, ignoring resource limitations, if and only if it is computable by a Turing machine.</p>
+            
+            <div class="info-section">
+                <h3>Key Concepts</h3>
+                <p>The Church-Turing thesis establishes the fundamental equivalence between different models of computation:</p>
+                <ul>
+                    <li><strong>Turing Machines</strong> - Abstract machines with infinite tape</li>
+                    <li><strong>Lambda Calculus</strong> - Formal system for function definition and application</li>
+                    <li><strong>Recursive Functions</strong> - Functions defined in terms of each other</li>
+                </ul>
+                <p>All these models have been proven to be equivalent in computational power.</p>
+            </div>
+            
+            <div class="hierarchy-visual" id="hierarchyVisual">
+                <!-- Hierarchy visualization will be generated here -->
+            </div>
+            
+            <div class="knowledge-panel">
+                <h4>Did You Know?</h4>
+                <p>The Church-Turing thesis is not a mathematical theorem that can be proven, but rather a hypothesis about the nature of computation. It has stood the test of time as every new model of computation has been shown to be equivalent to Turing machines.</p>
+            </div>
+            
+            <div class="control-panel">
+                <button class="control-btn active" data-model="turing">Turing Machine</button>
+                <button class="control-btn" data-model="lambda">Lambda Calculus</button>
+                <button class="control-btn" data-model="recursive">Recursive Functions</button>
+            </div>
+            
+            <div class="automaton" id="turing-machine">
+                <!-- Turing Machine visualization will be generated here -->
+            </div>
+            
+            <div class="input-string">
+                <input type="text" id="turing-input" placeholder="Enter input for Turing Machine">
+                <button id="run-turing">Run Simulation</button>
+                <button id="step-turing">Step Forward</button>
+            </div>
+            
+            <div class="string-options">
+                <h4>Example Strings to Try:</h4>
+                <div class="string-option" data-input="1010">1010</div>
+                <div class="string-option" data-input="111000">111000</div>
+                <div class="string-option" data-input="0011">0011</div>
+            </div>
+            
+            <div id="turing-output"></div>
+        </div>
+    </div>
+
+    <div class="simulation-area" id="regular-sim">
+        <div class="simulation-content">
+            <button class="close-btn">&times;</button>
+            <h2>Regular Languages & Finite Automata</h2>
+            <p>Regular languages are the simplest in the Chomsky hierarchy, recognized by finite automata and described by regular expressions.</p>
+            
+            <div class="info-section">
+                <h3>Characteristics</h3>
+                <ul>
+                    <li>Recognized by Finite Automata (DFA/NFA)</li>
+                    <li>Described by Regular Expressions</li>
+                    <li>Closed under union, concatenation, and Kleene star</li>
+                    <li>Examples: Binary numbers, identifiers in programming languages</li>
+                </ul>
+            </div>
+            
+            <div class="comparison-table">
+                <h4>Finite Automata Comparison</h4>
+                <table>
+                    <tr>
+                        <th>Type</th>
+                        <th>Memory</th>
+                        <th>Power</th>
+                        <th>Example</th>
+                    </tr>
+                    <tr>
+                        <td>DFA</td>
+                        <td>Finite states</td>
+                        <td>Deterministic</td>
+                        <td>Binary strings ending in 1</td>
+                    </tr>
+                    <tr>
+                        <td>NFA</td>
+                        <td>Finite states</td>
+                        <td>Non-deterministic</td>
+                        <td>Strings with 'ab' or 'ba'</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="automaton" id="finite-automaton">
+                <!-- Finite Automaton visualization will be generated here -->
+            </div>
+            
+            <div class="input-string">
+                <input type="text" id="fa-input" placeholder="Enter string to test">
+                <button id="run-fa">Test String</button>
+                <button id="animate-fa">Animate</button>
+                <button id="reset-fa">Reset</button>
+            </div>
+            
+            <div class="string-options">
+                <h4>Example Strings to Try:</h4>
+                <div class="string-option" data-input="0101">0101</div>
+                <div class="string-option" data-input="101">101</div>
+                <div class="string-option" data-input="0011">0011</div>
+                <div class="string-option" data-input="1100">1100</div>
+                <div class="string-option" data-input="010">010</div>
+            </div>
+            
+            <div class="quiz-container">
+                <h4>Quick Quiz</h4>
+                <div class="quiz-question">
+                    <p>Which of these languages is NOT regular?</p>
+                    <div class="quiz-options">
+                        <div class="quiz-option" data-correct="false">Strings with even number of 0s</div>
+                        <div class="quiz-option" data-correct="false">Binary strings ending with 1</div>
+                        <div class="quiz-option" data-correct="true">Strings with equal number of 0s and 1s</div>
+                        <div class="quiz-option" data-correct="false">Strings that don't contain '11'</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="fa-output"></div>
+        </div>
+    </div>
+
+    <div class="simulation-area" id="context-free-sim">
+        <div class="simulation-content">
+            <button class="close-btn">&times;</button>
+            <h2>Context-Free Languages & Pushdown Automata</h2>
+            <p>Context-free languages are generated by context-free grammars and recognized by pushdown automata.</p>
+            
+            <div class="info-section">
+                <h3>Characteristics</h3>
+                <ul>
+                    <li>Recognized by Pushdown Automata (PDA)</li>
+                    <li>Described by Context-Free Grammars</li>
+                    <li>More powerful than regular languages</li>
+                    <li>Examples: Balanced parentheses, palindromes, aⁿbⁿ</li>
+                </ul>
+            </div>
+            
+            <div class="knowledge-panel">
+                <h4>Grammar Example</h4>
+                <p>A context-free grammar for aⁿbⁿ:</p>
+                <p>S → aSb | ε</p>
+                <p>This grammar generates strings like: ε, ab, aabb, aaabbb, etc.</p>
+            </div>
+            
+            <div class="automaton" id="pushdown-automaton">
+                <!-- Pushdown Automaton visualization will be generated here -->
+            </div>
+            
+            <div class="input-string">
+                <input type="text" id="pda-input" placeholder="Enter string to test">
+                <button id="run-pda">Test String</button>
+            </div>
+            
+            <div class="string-options">
+                <h4>Example Strings to Try:</h4>
+                <div class="string-option" data-input="aabb">aabb</div>
+                <div class="string-option" data-input="aaabbb">aaabbb</div>
+                <div class="string-option" data-input="ab">ab</div>
+                <div class="string-option" data-input="aab">aab</div>
+                <div class="string-option" data-input="abb">abb</div>
+            </div>
+            
+            <div id="pda-output"></div>
+        </div>
+    </div>
+
+    <div class="simulation-area" id="context-sensitive-sim">
+        <div class="simulation-content">
+            <button class="close-btn">&times;</button>
+            <h2>Context-Sensitive Languages & Linear Bounded Automata</h2>
+            <p>Context-sensitive languages are generated by context-sensitive grammars and recognized by linear bounded automata.</p>
+            
+            <div class="info-section">
+                <h3>Characteristics</h3>
+                <ul>
+                    <li>Recognized by Linear Bounded Automata (LBA)</li>
+                    <li>Described by Context-Sensitive Grammars</li>
+                    <li>More powerful than context-free languages</li>
+                    <li>Examples: aⁿbⁿcⁿ, {ww | w ∈ {a,b}*}</li>
+                </ul>
+            </div>
+            
+            <div class="interactive-diagram" id="lba-diagram">
+                <div class="diagram-element" style="top: 20px; left: 20px;" data-info="LBA Tape">Tape</div>
+                <div class="diagram-element" style="top: 20px; left: 100px;" data-info="Read/Write Head">Head</div>
+                <div class="diagram-element" style="top: 80px; left: 60px;" data-info="Finite Control">Control</div>
+            </div>
+            
+            <div class="automaton" id="lba-automaton">
+                <p style="text-align: center; padding: 20px;">Linear Bounded Automaton visualization will appear here when you run a simulation.</p>
+            </div>
+            
+            <div class="input-string">
+                <input type="text" id="lba-input" placeholder="Enter string to test">
+                <button id="run-lba">Test String</button>
+            </div>
+            
+            <div class="string-options">
+                <h4>Example Strings to Try:</h4>
+                <div class="string-option" data-input="aabbcc">aabbcc</div>
+                <div class="string-option" data-input="abc">abc</div>
+                <div class="string-option" data-input="aaabbbccc">aaabbbccc</div>
+                <div class="string-option" data-input="aabcc">aabcc</div>
+                <div class="string-option" data-input="abbcc">abbcc</div>
+            </div>
+            
+            <div id="lba-output"></div>
+        </div>
+    </div>
+
+    <div class="simulation-area" id="recursively-enumerable-sim">
+        <div class="simulation-content">
+            <button class="close-btn">&times;</button>
+            <h2>Recursively Enumerable Languages & Turing Machines</h2>
+            <p>Recursively enumerable languages are generated by unrestricted grammars and recognized by Turing machines.</p>
+            
+            <div class="info-section">
+                <h3>Characteristics</h3>
+                <ul>
+                    <li>Recognized by Turing Machines</li>
+                    <li>Described by Unrestricted Grammars</li>
+                    <li>Most powerful class in Chomsky hierarchy</li>
+                    <li>Examples: Halting problem, any computable function</li>
+                </ul>
+            </div>
+            
+            <div class="knowledge-panel">
+                <h4>The Halting Problem</h4>
+                <p>The halting problem asks whether a given program will eventually halt or run forever. Alan Turing proved that no algorithm can solve the halting problem for all possible program-input pairs, demonstrating the limits of computation.</p>
+            </div>
+            
+            <div class="automaton" id="tm-automaton">
+                <!-- Turing Machine tape visualization -->
+                <div class="tape" id="tm-tape">
+                    <div class="tape-cell">B</div>
+                    <div class="tape-cell">B</div>
+                    <div class="tape-cell">B</div>
+                    <div class="tape-cell">B</div>
+                    <div class="tape-cell">B</div>
+                    <div class="tape-cell">B</div>
+                    <div class="tape-cell">B</div>
+                </div>
+            </div>
+            
+            <div class="input-string">
+                <input type="text" id="tm-input" placeholder="Enter input for Turing Machine">
+                <button id="run-tm">Run Simulation</button>
+                <button id="step-tm">Step Forward</button>
+            </div>
+            
+            <div class="string-options">
+                <h4>Example Strings to Try:</h4>
+                <div class="string-option" data-input="101">101</div>
+                <div class="string-option" data-input="1001">1001</div>
+                <div class="string-option" data-input="11011">11011</div>
+                <div class="string-option" data-input="1010">1010</div>
+                <div class="string-option" data-input="111">111</div>
+            </div>
+            
+            <div id="tm-output"></div>
+        </div>
+    </div>
+
+    <!-- Achievement Notification -->
+    <div class="achievement" id="achievement">
+        <i class="fas fa-trophy"></i>
+        <div>
+            <h4>Achievement Unlocked!</h4>
+            <p id="achievement-text">You've completed your first mission!</p>
+        </div>
+    </div>
+
+    <!-- Tooltip Element -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        // DOM Elements
+        const enterBtn = document.getElementById('enterBtn');
+        const playground = document.getElementById('playground');
+        const heroCanvas = document.getElementById('heroCanvas');
+        const particles = document.getElementById('particles');
+        const playgroundParticles = document.getElementById('playgroundParticles');
+        const islands = document.querySelectorAll('.island');
+        const simulationAreas = document.querySelectorAll('.simulation-area');
+        const closeBtns = document.querySelectorAll('.close-btn');
+        const tooltip = document.getElementById('tooltip');
+        const controlBtns = document.querySelectorAll('.control-btn');
+        const missionBtns = document.querySelectorAll('.mission-btn');
+        const stringOptions = document.querySelectorAll('.string-option');
+        const quizOptions = document.querySelectorAll('.quiz-option');
+        const diagramElements = document.querySelectorAll('.diagram-element');
+        const achievement = document.getElementById('achievement');
+        const achievementText = document.getElementById('achievement-text');
+
+        // State variables
+        let currentState = 'q0';
+        let inputIndex = 0;
+        let animationInterval;
+        let currentModel = 'turing';
+        let missionProgress = {
+            'regular': 30,
+            'context-free': 10,
+            'recursively-enumerable': 5
+        };
+        let achievements = [];
+
+        // Enter the playground
+        enterBtn.addEventListener('click', () => {
+            playground.style.display = 'block';
+            document.querySelector('.hero').style.display = 'none';
+            initializeIslands();
+            createPlaygroundParticles();
+            initializeHierarchyVisual();
+            showAchievement("Welcome to Computation Unfolded!", "Explore the fascinating world of computation theory!");
+        });
+
+        // Initialize island interactions
+        function initializeIslands() {
+            islands.forEach(island => {
+                island.addEventListener('click', () => {
+                    // Remove active class from all islands
+                    islands.forEach(i => i.classList.remove('active'));
+                    // Add active class to clicked island
+                    island.classList.add('active');
+                    
+                    // Show corresponding simulation
+                    const islandType = island.getAttribute('data-island');
+                    document.getElementById(`${islandType}-sim`).style.display = 'flex';
+                    
+                    // Initialize specific simulation
+                    if (islandType === 'regular') {
+                        initFiniteAutomaton();
+                    } else if (islandType === 'church-turing') {
+                        initTuringMachine();
+                    } else if (islandType === 'context-free') {
+                        initPushdownAutomaton();
+                    } else if (islandType === 'context-sensitive') {
+                        initLBA();
+                    } else if (islandType === 'recursively-enumerable') {
+                        initTuringMachineFull();
+                    }
+                });
+
+                // Add tooltip on hover
+                island.addEventListener('mouseenter', (e) => {
+                    const islandType = island.getAttribute('data-island');
+                    let tooltipText = '';
+                    
+                    switch(islandType) {
+                        case 'church-turing':
+                            tooltipText = 'Explore the equivalence of computational models';
+                            break;
+                        case 'regular':
+                            tooltipText = 'Type 3: Finite Automata and Regular Expressions';
+                            break;
+                        case 'context-free':
+                            tooltipText = 'Type 2: Pushdown Automata and Context-Free Grammars';
+                            break;
+                        case 'context-sensitive':
+                            tooltipText = 'Type 1: Linear Bounded Automata and Context-Sensitive Grammars';
+                            break;
+                        case 'recursively-enumerable':
+                            tooltipText = 'Type 0: Turing Machines and Unrestricted Grammars';
+                            break;
+                    }
+                    
+                    tooltip.innerHTML = tooltipText;
+                    tooltip.style.left = `${e.pageX + 15}px`;
+                    tooltip.style.top = `${e.pageY + 15}px`;
+                    tooltip.style.opacity = '1';
+                });
+
+                island.addEventListener('mousemove', (e) => {
+                    tooltip.style.left = `${e.pageX + 15}px`;
+                    tooltip.style.top = `${e.pageY + 15}px`;
+                });
+
+                island.addEventListener('mouseleave', () => {
+                    tooltip.style.opacity = '0';
+                });
+            });
+        }
+
+        // Mission button handlers
+        missionBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const missionType = btn.getAttribute('data-mission');
+                
+                // Update progress
+                missionProgress[missionType] += 20;
+                if (missionProgress[missionType] > 100) missionProgress[missionType] = 100;
+                
+                // Update progress bar
+                document.getElementById(`mission${getMissionNumber(missionType)}-progress`).style.width = `${missionProgress[missionType]}%`;
+                
+                // Show corresponding simulation
+                document.getElementById(`${missionType}-sim`).style.display = 'flex';
+                
+                // Initialize specific simulation
+                if (missionType === 'regular') {
+                    initFiniteAutomaton();
+                    showAchievement("Regular Languages Explorer", "You're exploring the world of finite automata!");
+                } else if (missionType === 'context-free') {
+                    initPushdownAutomaton();
+                    showAchievement("Context-Free Adventurer", "You're diving into pushdown automata!");
+                } else if (missionType === 'recursively-enumerable') {
+                    initTuringMachineFull();
+                    showAchievement("Turing Machine Master", "You're tackling the most powerful computational model!");
+                }
+            });
+        });
+
+        function getMissionNumber(missionType) {
+            switch(missionType) {
+                case 'regular': return '1';
+                case 'context-free': return '2';
+                case 'recursively-enumerable': return '3';
+                default: return '1';
+            }
+        }
+
+        // Quiz option handlers
+        quizOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const isCorrect = option.getAttribute('data-correct') === 'true';
+                
+                if (isCorrect) {
+                    option.classList.add('correct');
+                    showAchievement("Quiz Master", "You answered correctly! Your knowledge is growing!");
+                } else {
+                    option.classList.add('incorrect');
+                    
+                    // Find and highlight correct answer
+                    quizOptions.forEach(opt => {
+                        if (opt.getAttribute('data-correct') === 'true') {
+                            opt.classList.add('correct');
+                        }
+                    });
+                }
+                
+                // Disable further clicks
+                quizOptions.forEach(opt => {
+                    opt.style.pointerEvents = 'none';
+                });
+            });
+        });
+
+        // Diagram element handlers
+        diagramElements.forEach(element => {
+            element.addEventListener('click', () => {
+                const info = element.getAttribute('data-info');
+                showAchievement("Interactive Explorer", `You discovered: ${info}`);
+            });
+        });
+
+        // Show achievement notification
+        function showAchievement(title, text) {
+            achievementText.innerHTML = `<strong>${title}</strong><br>${text}`;
+            achievement.style.display = 'flex';
+            
+            setTimeout(() => {
+                achievement.style.display = 'none';
+            }, 5000);
+            
+            // Add to achievements list
+            achievements.push({ title, text, timestamp: new Date() });
+        }
+
+        // Close simulation areas
+        closeBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.simulation-area').style.display = 'none';
+                // Reset any active animations
+                resetAnimations();
+            });
+        });
+
+        // Control buttons for Church-Turing simulation
+        controlBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                controlBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentModel = btn.getAttribute('data-model');
+                updateModelVisualization();
+            });
+        });
+
+        // String option buttons
+        stringOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const input = option.getAttribute('data-input');
+                const simulationArea = option.closest('.simulation-area');
+                
+                if (simulationArea.id === 'regular-sim') {
+                    document.getElementById('fa-input').value = input;
+                } else if (simulationArea.id === 'context-free-sim') {
+                    document.getElementById('pda-input').value = input;
+                } else if (simulationArea.id === 'context-sensitive-sim') {
+                    document.getElementById('lba-input').value = input;
+                } else if (simulationArea.id === 'recursively-enumerable-sim') {
+                    document.getElementById('tm-input').value = input;
+                    updateTMTape(input);
+                } else if (simulationArea.id === 'church-turing-sim') {
+                    document.getElementById('turing-input').value = input;
+                }
+            });
+        });
+
+        // Create animated background for hero section
+        function createHeroBackground() {
+            const canvas = document.createElement('canvas');
+            heroCanvas.appendChild(canvas);
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Particles for animation
+            const particles = [];
+            const particleCount = 100;
+            
+            // Create particles
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 3 + 1,
+                    speedX: Math.random() * 2 - 1,
+                    speedY: Math.random() * 2 - 1,
+                    color: `rgba(${Math.floor(Math.random() * 100 + 155)}, 
+                                 ${Math.floor(Math.random() * 100 + 155)}, 
+                                 ${Math.floor(Math.random() * 255)}, 
+                                 ${Math.random() * 0.5 + 0.2})`
+                });
+            }
+            
+            // Animation loop
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Update and draw particles
+                particles.forEach(particle => {
+                    particle.x += particle.speedX;
+                    particle.y += particle.speedY;
+                    
+                    // Wrap around edges
+                    if (particle.x < 0) particle.x = canvas.width;
+                    if (particle.x > canvas.width) particle.x = 0;
+                    if (particle.y < 0) particle.y = canvas.height;
+                    if (particle.y > canvas.height) particle.y = 0;
+                    
+                    // Draw particle
+                    ctx.beginPath();
+                    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                    ctx.fillStyle = particle.color;
+                    ctx.fill();
+                });
+                
+                // Draw connections between close particles
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const dx = particles[i].x - particles[j].x;
+                        const dy = particles[i].y - particles[j].y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < 100) {
+                            ctx.beginPath();
+                            ctx.strokeStyle = `rgba(100, 200, 255, ${0.2 * (1 - distance/100)})`;
+                            ctx.lineWidth = 0.5;
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+                
+                requestAnimationFrame(animate);
+            }
+            
+            animate();
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            });
+        }
+
+        // Create particles for playground
+        function createPlaygroundParticles() {
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = `${Math.random() * 100}%`;
+                particle.style.top = `${Math.random() * 100}%`;
+                particle.style.animation = `float ${Math.random() * 10 + 10}s linear infinite`;
+                particle.style.animationDelay = `${Math.random() * 5}s`;
+                playgroundParticles.appendChild(particle);
+            }
+        }
+
+        // Initialize Hierarchy Visualization
+        function initializeHierarchyVisual() {
+            const hierarchyVisual = document.getElementById('hierarchyVisual');
+            if (!hierarchyVisual) return;
+            
+            hierarchyVisual.innerHTML = '';
+            
+            const levels = [
+                { name: "Type 3: Regular Languages", y: 0, color: "#00ffaa" },
+                { name: "Type 2: Context-Free Languages", y: 40, color: "#ffaa00" },
+                { name: "Type 1: Context-Sensitive Languages", y: 80, color: "#aa00ff" },
+                { name: "Type 0: Recursively Enumerable Languages", y: 120, color: "#ff0066" }
+            ];
+            
+            levels.forEach(level => {
+                const levelElement = document.createElement('div');
+                levelElement.className = 'hierarchy-level';
+                levelElement.style.top = `${level.y}px`;
+                levelElement.style.borderLeft = `4px solid ${level.color}`;
+                levelElement.textContent = level.name;
+                hierarchyVisual.appendChild(levelElement);
+            });
+        }
+
+        // Initialize Finite Automaton visualization
+        function initFiniteAutomaton() {
+            const automaton = document.getElementById('finite-automaton');
+            automaton.innerHTML = '';
+            
+            const states = [
+                { id: 'q0', x: 100, y: 150, isStart: true, isFinal: false },
+                { id: 'q1', x: 300, y: 150, isStart: false, isFinal: false },
+                { id: 'q2', x: 500, y: 150, isStart: false, isFinal: true }
+            ];
+            
+            const transitions = [
+                { from: 'q0', to: 'q1', label: '0,1' },
+                { from: 'q1', to: 'q2', label: '0,1' },
+                { from: 'q2', to: 'q2', label: '0,1' }
+            ];
+            
+            // Draw states
+            states.forEach(state => {
+                const stateElement = document.createElement('div');
+                stateElement.className = 'state';
+                stateElement.id = state.id;
+                stateElement.style.left = `${state.x}px`;
+                stateElement.style.top = `${state.y}px`;
+                stateElement.textContent = state.id;
+                
+                if (state.isStart) {
+                    const startArrow = document.createElement('div');
+                    startArrow.style.position = 'absolute';
+                    startArrow.style.left = `${state.x - 40}px`;
+                    startArrow.style.top = `${state.y + 25}px`;
+                    startArrow.style.width = '30px';
+                    startArrow.style.height = '2px';
+                    startArrow.style.backgroundColor = 'var(--primary)';
+                    automaton.appendChild(startArrow);
+                    
+                    const arrowHead = document.createElement('div');
+                    arrowHead.style.position = 'absolute';
+                    arrowHead.style.left = `${state.x - 40}px`;
+                    arrowHead.style.top = `${state.y + 20}px`;
+                    arrowHead.style.width = '10px';
+                    arrowHead.style.height = '10px';
+                    arrowHead.style.borderTop = '2px solid var(--primary)';
+                    arrowHead.style.borderRight = '2px solid var(--primary)';
+                    arrowHead.style.transform = 'rotate(45deg)';
+                    automaton.appendChild(arrowHead);
+                }
+                
+                if (state.isFinal) {
+                    const finalCircle = document.createElement('div');
+                    finalCircle.style.position = 'absolute';
+                    finalCircle.style.left = `${state.x - 5}px`;
+                    finalCircle.style.top = `${state.y - 5}px`;
+                    finalCircle.style.width = '70px';
+                    finalCircle.style.height = '70px';
+                    finalCircle.style.border = '2px solid var(--secondary)';
+                    finalCircle.style.borderRadius = '50%';
+                    automaton.appendChild(finalCircle);
+                }
+                
+                automaton.appendChild(stateElement);
+            });
+            
+            // Draw transitions
+            transitions.forEach(transition => {
+                const fromState = states.find(s => s.id === transition.from);
+                const toState = states.find(s => s.id === transition.to);
+                
+                if (fromState && toState) {
+                    const dx = toState.x - fromState.x;
+                    const dy = toState.y - fromState.y;
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                    
+                    const transitionElement = document.createElement('div');
+                    transitionElement.className = 'transition';
+                    transitionElement.style.left = `${fromState.x + 30}px`;
+                    transitionElement.style.top = `${fromState.y + 30}px`;
+                    transitionElement.style.width = `${length - 60}px`;
+                    transitionElement.style.transform = `rotate(${angle}deg)`;
+                    automaton.appendChild(transitionElement);
+                    
+                    const label = document.createElement('div');
+                    label.className = 'transition-label';
+                    label.textContent = transition.label;
+                    label.style.left = `${fromState.x + dx/2}px`;
+                    label.style.top = `${fromState.y + dy/2 - 20}px`;
+                    automaton.appendChild(label);
+                    
+                    // Draw arrowhead
+                    const arrowHead = document.createElement('div');
+                    arrowHead.style.position = 'absolute';
+                    arrowHead.style.left = `${toState.x - 10}px`;
+                    arrowHead.style.top = `${toState.y + 20}px`;
+                    arrowHead.style.width = '10px';
+                    arrowHead.style.height = '10px';
+                    arrowHead.style.borderTop = '2px solid var(--secondary)';
+                    arrowHead.style.borderRight = '2px solid var(--secondary)';
+                    arrowHead.style.transform = `rotate(${angle + 45}deg)`;
+                    automaton.appendChild(arrowHead);
+                }
+            });
+        }
+
+        // Initialize Turing Machine visualization
+        function initTuringMachine() {
+            const automaton = document.getElementById('turing-machine');
+            automaton.innerHTML = '<p style="text-align: center; padding: 20px;">Turing Machine visualization will appear here when you run a simulation.</p>';
+        }
+
+        // Initialize full Turing Machine visualization
+        function initTuringMachineFull() {
+            const automaton = document.getElementById('tm-automaton');
+            // Tape is already in the HTML, we just need to update it based on input
+            const input = document.getElementById('tm-input').value;
+            if (input) {
+                updateTMTape(input);
+            }
+        }
+
+        // Initialize Pushdown Automaton visualization
+        function initPushdownAutomaton() {
+            const automaton = document.getElementById('pushdown-automaton');
+            automaton.innerHTML = '<div style="text-align: center; padding: 20px; display: flex; flex-direction: column; align-items: center;">' +
+                '<div style="margin-bottom: 20px;">' +
+                '<div style="background: var(--primary); width: 60px; height: 60px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: var(--dark-bg); font-weight: bold; margin: 0 auto;">q0</div>' +
+                '<div style="text-align: center; margin-top: 10px;">Start State</div>' +
+                '</div>' +
+                '<div style="display: flex; justify-content: center; align-items: center; margin: 20px 0;">' +
+                '<div style="width: 100px; height: 150px; background: rgba(255, 255, 255, 0.1); border: 2px solid var(--secondary); border-radius: 5px; position: relative;">' +
+                '<div style="position: absolute; bottom: 0; width: 100%; text-align: center; padding: 5px; background: var(--secondary); color: white;">Stack</div>' +
+                '</div>' +
+                '</div>' +
+                '<div>Pushdown Automaton for aⁿbⁿ</div>' +
+                '</div>';
+        }
+
+        // Initialize LBA visualization
+        function initLBA() {
+            const automaton = document.getElementById('lba-automaton');
+            automaton.innerHTML = '<div style="text-align: center; padding: 20px;">' +
+                '<div style="display: flex; justify-content: center; margin-bottom: 20px;">' +
+                '<div style="width: 80px; height: 80px; background: var(--primary); border-radius: 50%; display: flex; justify-content: center; align-items: center; color: var(--dark-bg); font-weight: bold; margin: 0 10px;">q0</div>' +
+                '<div style="width: 80px; height: 80px; background: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 10px;">q1</div>' +
+                '<div style="width: 80px; height: 80px; background: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 10px;">q2</div>' +
+                '</div>' +
+                '<div style="width: 100%; height: 40px; background: rgba(255, 255, 255, 0.1); border: 2px solid var(--tertiary); border-radius: 5px; display: flex; align-items: center; padding: 0 10px; margin: 0 auto;">' +
+                '<div>Linear Bounded Automaton Tape</div>' +
+                '</div>' +
+                '</div>';
+        }
+
+        // Update model visualization for Church-Turing
+        function updateModelVisualization() {
+            const output = document.getElementById('turing-output');
+            let modelInfo = '';
+            
+            switch(currentModel) {
+                case 'turing':
+                    modelInfo = '<p><strong>Turing Machine Model</strong><br>A theoretical device that manipulates symbols on a strip of tape according to a table of rules.</p>';
+                    break;
+                case 'lambda':
+                    modelInfo = '<p><strong>Lambda Calculus Model</strong><br>A formal system in mathematical logic for expressing computation based on function abstraction and application.</p>';
+                    break;
+                case 'recursive':
+                    modelInfo = '<p><strong>Recursive Functions Model</strong><br>A class of functions that can be computed by a Turing machine, defined using basic functions and operations.</p>';
+                    break;
+            }
+            
+            output.innerHTML = modelInfo;
+        }
+
+        // Reset animations
+        function resetAnimations() {
+            if (animationInterval) {
+                clearInterval(animationInterval);
+            }
+            
+            // Reset all states to inactive
+            document.querySelectorAll('.state').forEach(state => {
+                state.classList.remove('active', 'reject');
+            });
+            
+            currentState = 'q0';
+            inputIndex = 0;
+        }
+
+        // Update Turing Machine tape
+        function updateTMTape(input) {
+            const tape = document.getElementById('tm-tape');
+            tape.innerHTML = '';
+            
+            // Add blank cells at beginning and end
+            for (let i = 0; i < 3; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'tape-cell';
+                cell.textContent = 'B';
+                tape.appendChild(cell);
+            }
+            
+            // Add input cells
+            for (let i = 0; i < input.length; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'tape-cell';
+                if (i === 0) cell.classList.add('active');
+                cell.textContent = input[i];
+                tape.appendChild(cell);
+            }
+            
+            // Add blank cells at end
+            for (let i = 0; i < 3; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'tape-cell';
+                cell.textContent = 'B';
+                tape.appendChild(cell);
+            }
+            
+            // Add tape head
+            const head = document.createElement('div');
+            head.className = 'tape-head';
+            head.textContent = '▼';
+            tape.children[3].appendChild(head);
+        }
+
+        // Initialize the application
+        function init() {
+            createHeroBackground();
+            
+            // Add event listeners for simulation buttons
+            document.getElementById('run-fa').addEventListener('click', () => {
+                const input = document.getElementById('fa-input').value;
+                const output = document.getElementById('fa-output');
+                
+                // Simple finite automaton simulation for binary strings ending with '01'
+                const regex = /[01]*01$/;
+                if (regex.test(input)) {
+                    output.innerHTML = `<p style="color: var(--success)">✓ String "${input}" is ACCEPTED by the automaton</p>`;
+                    
+                    // Visual feedback
+                    document.getElementById('q2').classList.add('active');
+                    showAchievement("String Accepted!", "You found a valid string for this automaton!");
+                } else {
+                    output.innerHTML = `<p style="color: var(--error)">✗ String "${input}" is REJECTED by the automaton</p>`;
+                    
+                    // Visual feedback
+                    const currentStateElement = document.getElementById(currentState);
+                    if (currentStateElement) {
+                        currentStateElement.classList.add('reject');
+                    }
+                }
+            });
+            
+            document.getElementById('animate-fa').addEventListener('click', () => {
+                resetAnimations();
+                const input = document.getElementById('fa-input').value;
+                if (!input) return;
+                
+                // Highlight initial state
+                document.getElementById('q0').classList.add('active');
+                currentState = 'q0';
+                inputIndex = 0;
+                
+                // Animate through the input string
+                animationInterval = setInterval(() => {
+                    if (inputIndex >= input.length) {
+                        clearInterval(animationInterval);
+                        return;
+                    }
+                    
+                    // Move to next state based on input
+                    const currentChar = input[inputIndex];
+                    let nextState = '';
+                    
+                    if (currentState === 'q0') {
+                        nextState = 'q1';
+                    } else if (currentState === 'q1') {
+                        nextState = 'q2';
+                    } else {
+                        nextState = 'q2'; // Stay in q2
+                    }
+                    
+                    // Update visualization
+                    document.getElementById(currentState).classList.remove('active');
+                    document.getElementById(nextState).classList.add('active');
+                    
+                    currentState = nextState;
+                    inputIndex++;
+                }, 1000);
+            });
+            
+            document.getElementById('reset-fa').addEventListener('click', () => {
+                resetAnimations();
+                document.getElementById('fa-output').innerHTML = '';
+            });
+            
+            document.getElementById('run-turing').addEventListener('click', () => {
+                const input = document.getElementById('turing-input').value;
+                const output = document.getElementById('turing-output');
+                output.innerHTML = `<p>Simulating Turing Machine with input: ${input}</p>`;
+                
+                // In a full implementation, this would run the actual Turing Machine simulation
+            });
+            
+            document.getElementById('run-pda').addEventListener('click', () => {
+                const input = document.getElementById('pda-input').value;
+                const output = document.getElementById('pda-output');
+                
+                // Simple check for a^n b^n pattern
+                const aCount = (input.match(/a/g) || []).length;
+                const bCount = (input.match(/b/g) || []).length;
+                
+                if (aCount === bCount && /^a*b*$/.test(input)) {
+                    output.innerHTML = `<p style="color: var(--success)">✓ String "${input}" is ACCEPTED by the automaton (aⁿbⁿ pattern detected)</p>`;
+                    showAchievement("Context-Free Success!", "You correctly identified a context-free language!");
+                } else {
+                    output.innerHTML = `<p style="color: var(--error)">✗ String "${input}" is REJECTED by the automaton</p>`;
+                }
+            });
+            
+            document.getElementById('run-lba').addEventListener('click', () => {
+                const input = document.getElementById('lba-input').value;
+                const output = document.getElementById('lba-output');
+                
+                // Simple check for a^n b^n c^n pattern
+                const aCount = (input.match(/a/g) || []).length;
+                const bCount = (input.match(/b/g) || []).length;
+                const cCount = (input.match(/c/g) || []).length;
+                
+                if (aCount === bCount && bCount === cCount && /^a*b*c*$/.test(input)) {
+                    output.innerHTML = `<p style="color: var(--success)">✓ String "${input}" is ACCEPTED by the automaton (aⁿbⁿcⁿ pattern detected)</p>`;
+                    showAchievement("Context-Sensitive Expert!", "You mastered a context-sensitive language!");
+                } else {
+                    output.innerHTML = `<p style="color: var(--error)">✗ String "${input}" is REJECTED by the automaton</p>`;
+                }
+            });
+            
+            document.getElementById('run-tm').addEventListener('click', () => {
+                const input = document.getElementById('tm-input').value;
+                const output = document.getElementById('tm-output');
+                
+                // Update tape visualization
+                updateTMTape(input);
+                
+                // Simple palindrome check for Turing Machine simulation
+                const isPalindrome = input === input.split('').reverse().join('');
+                
+                if (isPalindrome) {
+                    output.innerHTML = `<p style="color: var(--success)">✓ String "${input}" is ACCEPTED by the Turing Machine (palindrome detected)</p>`;
+                    showAchievement("Turing Complete!", "You solved a problem with a Turing Machine!");
+                } else {
+                    output.innerHTML = `<p style="color: var(--error)">✗ String "${input}" is REJECTED by the Turing Machine</p>`;
+                }
+            });
+        }
+
+        // Start the application
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
